@@ -1,0 +1,12 @@
+[unit]
+Description=fork service
+#After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/nvidia/Rudra_19/Fork_lib/fork
+Restart=always
+User=nvidia
+
+[Install]
+WantedBy=multi-user.target
