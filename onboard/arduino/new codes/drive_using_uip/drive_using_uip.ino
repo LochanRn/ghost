@@ -1,0 +1,239 @@
+/*This code controls an arm which includes two Linear actuators,
+  One power window for the turntable 3 servos for ypr and a dc motor
+  for the gripper
+  Controls:
+         Direction1  Direction2
+  LA1     UP         ,DOWN arrows
+  LA2     Shift+UP   ,Shift+DOWN arrows
+  TT      RIGHT      ,LEFT arrows
+
+          D1      D2
+  Gripper I      ,O
+  Yaw     J+LEft ,J+Right
+  PITCH   K+LEft ,K+Right
+  ROLL    L+LEft ,L+Right
+*/
+
+#include <Servo.h>
+#include <UIPEthernet.h>
+EthernetUDP udp;
+
+
+unsigned char data[50];
+//SPI variables
+int dat = 0;
+//int ss = 53;
+bool flag = false;
+
+int bits[] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+int LA2[] =  { 43, 45, 12};                      // A, B, PWM short 0-1 up// pot A3
+int LA1[] =  { 31, 33, 11};                      // A, B, PWM long 0-1 up //pot A5
+
+int GRP[] =  { 39, 41, 8};                      // A, B, PWM grp 0-1 up
+
+float ttfilter = 0.6, a = 0.8;
+
+int s[] = {1760, 1890, 1740};
+//int current[] = {0,0,0};
+//int s1[] = {1450, 1680, 1300};  //servo controllers
+Servo yaw, pitch, roll;                          //Servo variables
+
+int speed = 0, speed_gpr = 0, pwm = 120, grpwm = 230;
+int limit  = 50;
+int accelUp = 1, accelDown = 1;
+int lfilter, gfilter, tt, dir = 0;                       //linear actuator filter, gripper filter
+
+int yawstep = 1, pitchstep = 1, rollstep = 1;                //Servo steps
+
+
+
+void setup() {
+ uint8_t mac[6] = {0x00,0x01,0x02,0x03,0x04,0x05};
+ Ethernet.begin(mac,IPAddress(192,168,1,37));
+ udp.begin(23908);
+
+  // LA outputs
+  for (int i = 0; i < 3; i++) {
+    pinMode(LA1[i], OUTPUT);
+    pinMode(LA2[i], OUTPUT);
+    pinMode(GRP[i], OUTPUT);
+  }
+
+  Serial.begin(9600);   //Debug
+  Serial1.begin(9600);  // Turn Table
+
+  //YPR pins
+  yaw.attach(10);
+  pitch.attach(5);//5 
+  roll.attach(2);// 2
+  initial();
+  
+ // Serial1.write(64);
+  // Serial.println("Setup");
+
+  
+}
+
+void loop() {
+
+   int size = udp.parsePacket();
+  if (size > 0) {
+       udp.read(data,50);
+       Serial.println(data[0]);
+//        process((int)data[0]);
+  }
+}
+
+void process(int input) {
+  // Serial.print(input);
+  if (input) {
+    updateBits(input);
+    if (bits[0] && (bits[6] - bits[7])) {
+      speed = (speed >= limit) ? limit : speed + accelUp;
+      turntable(speed * (bits[6] - bits[7]));
+      dir = (bits[6] - bits[7]);
+    }
+    else if ( (bits[1] && bits[2]) || bits[2] && bits[3]) {
+      // Serial.print("Gripper");
+      if (bits[1] && bits[2])
+        Serial1.write(254);
+      else if (bits[2] && bits[3])
+        Serial1.write(129);
+    }
+
+    else if (bits[1] || bits[2] || bits[3]){       
+      ypr();
+      
+    }
+    control(pwm, grpwm);
+
+  }
+  else {
+    control(0, 0);
+    Serial1.write(192);
+    while (speed) {
+      speed = (speed < accelDown) ? 0 : speed - accelDown;
+      turntable(speed * dir);
+    }
+  }
+}
+
+void control(int pwm, int grpwm) {
+  lup();
+  lfilter = !bits[0] * (lfilter * a + (1 - a) * pwm);
+
+  act(LA1, (bits[5] && (!bits[3]) && (!bits[2]) && (!bits[1])), (bits[4] && (!bits[3]) && (!bits[2]) && (!bits[1])), lfilter);
+  act(LA2, (bits[7] && (!bits[3]) && (!bits[1]) && (!bits[2])), (bits[6] && (!bits[3]) && (!bits[2]) && (!bits[1])), lfilter);
+
+  // act(GRP, (bits[1] && bits[2]), (bits[2] && bits[3]), grpwm);
+}
+
+void lup() {
+  pwm = bits[4] || bits[5] || bits[6] || bits[7] ? ++pwm : 50;
+  pwm = pwm > 150 ? 150 : pwm;
+}
+int safeservo_yaw(int x) {
+
+  if (x > 1900) return 1900;
+  else if (x < 1600) return 1600;
+  else return x;
+}
+
+int safeservo_pitch(int x) {
+  if (x > 2100) return 2100;
+  else if (x < 1440) return 1440;
+  else return x;
+}
+
+int safeservo_roll(int x) {
+  if (x > 2400) return 2400;
+  else if (x < 800) return 800;
+  else return x;
+}
+
+
+void ypr() {
+
+  if (bits[1] && bits[2] && bits[3] && (!bits[0])) {
+    initial();
+  }
+  else if (bits[3]) {
+    s[0] += yawstep * (bits[7] - bits[6]);
+    s[0] = safeservo_yaw(s[0]);
+    yaw.writeMicroseconds(s[0]);
+  }
+  else if (bits[2]) {
+    s[1] += pitchstep * (bits[5] - bits[4]);
+    s[1] = safeservo_pitch(s[1]);
+    pitch.writeMicroseconds(s[1]);
+  }
+  else if (bits[1]) {
+    s[2] += rollstep * (bits[7] - bits[6]);
+    s[2] = safeservo_roll(s[2]);
+    roll.writeMicroseconds(s[2]);
+  }
+  //delay(2);
+  //
+  //    Serial.print(s[0]);
+  //    Serial.print(" ");
+  //    Serial.print(s[1]);
+  //    Serial.print(" ");
+  //    Serial.print(s[2]);
+  //    Serial.print(" ");
+  //    Serial.println();
+}
+
+void turntable(int x) {
+  int y = map(x,-100, 100, 1, 127);
+  tt = (x) ? tt * ttfilter + (1 - ttfilter) * y : 64;
+  //    Serial.print(x);
+  //    Serial.print(" ");
+  //    Serial.println(tt);
+  //Serial1.write(tt);
+  delay(5);
+}
+
+void act(int arr[], boolean A, boolean B, int pwm) {
+  digitalWrite(arr[0], A);
+  digitalWrite(arr[1], B);
+  analogWrite(arr[2], pwm);
+  //    Serial.print("   ");
+  //    Serial.print(arr[0]);
+  //    Serial.print("   ");
+  //    Serial.print(arr[1]);
+  //    Serial.print("   ");
+  //    Serial.print(A);
+  //    Serial.print("   ");
+  //    Serial.println(B);
+  //    Serial.print("   ");
+  //    Serial.println(pwm);
+}
+
+void updateBits(int val) {
+  for (int i = 0; i < 8; i++)
+    bits[i] = getBit(val, i);
+     display();
+}
+
+bool getBit(int n, int pos) {
+  return (n >> pos) & 1;
+}
+
+void display() {
+  for (int i = 0; i < 8; i++) {
+    Serial.print(bits[i]);
+    Serial.print(" ");
+  }
+  Serial.println();
+}
+
+void initial()
+{
+  //  Initialize YPR
+  //  Serial.println("Intializing YPR");
+  s[0] = 1760; s[1] = 1890 ; s[2] = 1740;
+  yaw.writeMicroseconds(s[0]);
+  pitch.writeMicroseconds(s[1]);
+  roll.writeMicroseconds(s[2]);
+}
