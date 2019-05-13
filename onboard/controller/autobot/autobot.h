@@ -11,7 +11,7 @@
 class Autobot{
 private:
     double latitude,longitude,difference,distance,bearing;
-    int Right = 16,Left = 64,Leftdrift = 192,Rightdrift = 144,fwd = 128,stop = 0;
+    int Right = 2,Left = 8,Leftdrift = 9,Rightdrift = 3,fwd = 1,stop = 0;
     int err = 5,werr = 15,dat = 0, isAuto = 0;
 public:
     double destlat,destlon;
