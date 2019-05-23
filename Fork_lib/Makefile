@@ -1,7 +1,7 @@
 CC = sudo g++ -std=c++11
 MAIN = start.cpp
 SOURCES = Fork/Fork.cpp udp/udp.cpp
-EXECUTABLE = start
+EXECUTABLE = fork
 RM = rm -rf
 $(EXECUTABLE): $(OBJECTS)
 		$(CC) $(MAIN) $(SOURCES) -o $@

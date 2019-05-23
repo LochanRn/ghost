@@ -1,18 +1,18 @@
-#include "autobot.h"
+#include "autobotObstacle.h"
 #include "../helper/helper.h"
 // #include "../spi/spi.h"
 
 Autobot::Autobot(){
 }
-int Autobot::update(double heading, Helper H, double offsetLeft, double offsetRight){
+int Autobot::update(double heading, Helper H){//, double offsetLeft, double offsetRight){
   H.get_latlon(latitude, longitude);
   bearing = H.get_bearing(latitude,longitude,destlat,destlon);
   distance = H.get_dist(latitude,longitude,destlat,destlon);
-  differenceLeft = heading - bearing + offsetLeft;
-  differenceRight = heading - bearing + offsetRight;
+  //differenceLeft = heading - bearing + offsetLeft;
+  //differenceRight = heading - bearing + offsetRight;
   //difference = (abs(difference)>180)?-((360-abs(difference))*difference/abs(difference)):difference;
-  differenceLeft = calcDifference(differenceLeft);
-  differenceRight = calcDifference(differenceRight);
+  difference = calcDifference(heading - bearing);
+  //differenceRight = calcDifference(differenceRight);
   /*if(abs(difference1) > 180)
     {
       if(difference1 >= 0)
@@ -41,11 +41,11 @@ int Autobot::update(double heading, Helper H, double offsetLeft, double offsetRi
      }
     difference2 = -difference2;
 */
-   if(abs(differenceLeft) > abs(differenceRight))
-   {
-      difference = differenceRight;
-   }
-   else difference = differenceLeft;
+  // if(abs(differenceLeft) > abs(differenceRight))
+  // {
+  //    difference = differenceRight;
+  // }
+  // else difference = differenceLeft;
 
 //   if(abs(heading + offset1 - bearing) >  abs(heading + offset2 - bearing))
 

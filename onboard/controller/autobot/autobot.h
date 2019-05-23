@@ -17,7 +17,7 @@ public:
     double destlat,destlon;
     Autobot();
     int update(double heading,Helper H);
-    
+    int updateDat(string data, Helper H);    
 
 };
 

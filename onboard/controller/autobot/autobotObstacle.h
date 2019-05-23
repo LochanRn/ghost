@@ -11,13 +11,13 @@
 class Autobot{
 private:
     double latitude,longitude,difference,distance,bearing;
-    int Right = 16,Left = 64,Leftdrift = 192,Rightdrift = 144,fwd = 128,stop = 0;
+    int Right = 2,Left = 8,Leftdrift = 9,Rightdrift = 3,fwd = 1,stop = 0;
     int err =10 ,wideErr = 20,dat = 0, isAuto = 0;
 public:
     double differenceLeft = 0, differenceRight = 0;
     double destlat,destlon;
     Autobot();
-    int update(double heading,Helper H, double offsetLeft, double offsetRight);
+    int update(double heading,Helper H);//, double offsetLeft, double offsetRight);
     
     double calcDifference(double diff)
     {
