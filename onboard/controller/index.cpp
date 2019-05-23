@@ -1,7 +1,7 @@
 #include "helper/helper.h"
 #include "compass/compass.h"
 #include "udp/udp.h"
-#include "autobot/autobot.h"
+#include "autobot/autobotObstacle.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -31,7 +31,7 @@ Compass c;
 int dat,isAuto = -1,size;
 int compass_fd;
 
-unsigned char data;
+unsigned char data[4],Arm[4];
 unsigned char *coods;
 
 double heading = 0;
@@ -48,10 +48,11 @@ string message = "";
 unsigned char* value;
 
 void kill() {
-//  cout<<"Killed"<<endl;
-  static unsigned char controls[2] = { (char)0, (char)0 }; 
-  drive.write(controls,portDriveW);
-  arm.write(controls, portArmW);
+  //cout<<"Killed"<<endl;
+  static unsigned char controlsArm[2] = { (unsigned char)0, (unsigned char)0 }; 
+  static unsigned char controlsDrive[4] = {(unsigned char)0, (unsigned char)0 ,(unsigned char)0, (unsigned char)0 };
+  drive.write(controlsDrive,portDriveW);
+  arm.write(controlsArm, portArmW);
 }
 
 void setup() {
@@ -61,7 +62,7 @@ void setup() {
     dat = 0,isAuto = -1,size = 0;
 
    if(!H.gpsdintialise()){
-    cout<<"ERROR: initialising gpsd! "<<endl;
+    //cout<<"ERROR: initialising gpsd! "<<endl;
 }
 
    compass_fd = c.compass_setup();
@@ -95,7 +96,7 @@ void Compass(){
     message = "$," + to_string(heading) + ",!";
     value = (unsigned char*)message.c_str();
     gs.write(value,portroverW);
-	cout<<"compass reached";
+	//cout<<"compass reached";
 }
 
 int interrupt(){
@@ -103,28 +104,33 @@ int interrupt(){
   if(coods[0] == '$') {
     removeCoods(0);
     kill();
-    cout<<"Autonomous Stopped ";
+    //cout<<"Autonomous Stopped ";
     return 1;
   }
   return 0;
 }
 
 void autonomous() {
+ //cout<<"autonomous started";
  A.destlat = cord[0].destlat,A.destlon = cord[0].destlon;
  while(1){
   if(interrupt()) break;
   Compass();
-  // A.destlat = cord[0].destlat,A.destlon = cord[0].destlon;
-  // printf("\nAUTO: Lat: %.6f, Lon: %6f\n",cord[0].destlat,cord[0].destlon);
-  cout<<dat<<" ";
+   A.destlat = cord[0].destlat,A.destlon = cord[0].destlon;
+   printf("\nAUTO: Lat: %.6f, Lon: %6f\n",cord[0].destlat,cord[0].destlon);
   dat = A.update(heading,H);
+  //cout<<"--------------------"<<dat<<"--------------------\n ";
+
   if(dat == -1){
     kill();
     break;
   }
   else {
-    data = (unsigned char)dat;
-    drive.write(&data,portDriveW);
+    data[0] = (unsigned char) 0;
+    data[1] = (unsigned char) dat;
+    data[2] = (unsigned char) 0;
+    data[3] = (unsigned char) 0;
+    drive.write(data,portDriveW);
   }
  }
 }
@@ -149,10 +155,10 @@ int parseCoods(unsigned char* coods) {
 void keyboard(unsigned char *coods) {
  static int i, mid,mid1,mid2;
  Compass();
- static unsigned char Drive[4], Arm[2];
+ //static unsigned char  Arm[2];//Data[4]
 
- drive.write(Drive,portDriveW);
- arm.write(Arm, portArmW);
+ //drive.write(Drive,portDriveW);
+ //arm.write(Arm, portArmW);
  string val = H.toString(coods);
 
 // cout<<val.substr(1,val.size()-1)<<endl;
@@ -162,15 +168,15 @@ void keyboard(unsigned char *coods) {
  for(int i = 0; i < 6 ; i++){
 
    if(i < 4){
-     Drive[i]= (unsigned char)atoi(c[i].c_str());
+     data[i]= (unsigned char)atoi(c[i].c_str());
    }
    else{
      Arm[i-4]= (unsigned char)atoi(c[i].c_str());
    }
-   cout<<c[i]<<" ";
+   //cout<<c[i]<<" ";
  }
- cout<<endl;
- drive.write(Drive,portDriveW);
+ //cout<<endl;
+ drive.write(data,portDriveW);
  arm.write(Arm, portArmW);
 }
 
@@ -193,6 +199,7 @@ void autoformultipledestination(){
   }
 }
 void decideautonomous(unsigned char* coods){
+  //cout<<"Deciding";
   if(coods[0] == '#') size = parseCoods(coods);
   message = "$," + to_string(heading) + ",%,";
   value = (unsigned char*)message.c_str();
@@ -212,14 +219,14 @@ void check(unsigned char* coods) {
   isAuto = (coods[0] == '<')? 0 : isAuto;
   if (isAuto == 2 && size > 0 ) {
     removeCoods(0);
-  //  cout << "Autonomous Stopped" << endl;
+    //cout << "Autonomous Stopped" << endl;
   }
   else if(isAuto == 1){
-   // cout << "Autonomous running" << endl;
+    //cout << "Autonomous running" << endl;
     decideautonomous(coods);
   }
   else if(isAuto == 0){
-//    cout << "Keyboard running" <<coods<< endl;
+    //cout << "Keyboard running" <<coods<< endl;
     keyboard(coods);
 
   }
