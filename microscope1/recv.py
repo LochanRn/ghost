@@ -5,8 +5,9 @@ import numpy
 import time
 import sys
 
-#serverName = '192.168.1.78'
-serverName='127.0.0.1'
+
+serverName = '192.168.1.77'
+#serverName='127.0.0.1'
 serverPort=12000
 
 s= socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
